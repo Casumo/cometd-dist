@@ -1,0 +1,3 @@
+[submodule "cometd"]
+	path = cometd
+	url = git@github.com:cometd/cometd.git
