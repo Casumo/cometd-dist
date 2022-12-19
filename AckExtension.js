@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2017 the original author or authors.
+ * Copyright (c) 2008-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-(function(root, factory){
+(((root, factory) => {
     if (typeof exports === 'object') {
         module.exports = factory(require('./cometd'));
     } else if (typeof define === 'function' && define.amd) {
@@ -22,7 +22,7 @@
     } else {
         factory(root.org.cometd);
     }
-}(this, function(cometdModule) {
+})(this, cometdModule => {
     /**
      * This client-side extension enables the client to acknowledge to the server
      * the messages that the client has received.
@@ -38,40 +38,36 @@
      * acknowledged when the /meta/connect returns.
      */
     return cometdModule.AckExtension = function() {
-        var _cometd;
-        var _serverSupportsAcks = false;
-        var _transientBatch;
-        var _size;
-        var _batch;
+        let _cometd;
+        let _serverSupportsAcks = false;
+        let _batch;
 
         function _debug(text, args) {
             _cometd._debug(text, args);
         }
 
-        this.registered = function(name, cometd) {
+        this.registered = (name, cometd) => {
             _cometd = cometd;
             _debug('AckExtension: executing registration callback');
         };
 
-        this.unregistered = function() {
+        this.unregistered = () => {
             _debug('AckExtension: executing unregistration callback');
             _cometd = null;
         };
 
-        this.incoming = function(message) {
-            var channel = message.channel;
-            var ext = message.ext;
+        this.incoming = message => {
+            const channel = message.channel;
+            const ext = message.ext;
             if (channel === '/meta/handshake') {
                 if (ext) {
-                    var ackField = ext.ack;
+                    const ackField = ext.ack;
                     if (typeof ackField === 'object') {
                         // New format.
                         _serverSupportsAcks = ackField.enabled === true;
-                        var batch = ackField.batch;
-                        var size = ackField.size;
-                        if (typeof batch === 'number' && typeof size === 'number') {
-                            _transientBatch = batch;
-                            _size = size;
+                        const batch = ackField.batch;
+                        if (typeof batch === 'number') {
+                            _batch = batch;
                         }
                     } else {
                         // Old format.
@@ -84,30 +80,20 @@
                     _batch = ext.ack;
                     _debug('AckExtension: server sent batch', _batch);
                 }
-            } else if (!/^\/meta\//.test(channel)) {
-                if (_size > 0) {
-                    --_size;
-                    if (_size == 0) {
-                        _batch = _transientBatch;
-                        _transientBatch = 0;
-                    }
-                }
             }
             return message;
         };
 
-        this.outgoing = function(message) {
-            var channel = message.channel;
+        this.outgoing = message => {
+            const channel = message.channel;
             if (!message.ext) {
                 message.ext = {};
             }
-            if (channel == '/meta/handshake') {
+            if (channel === '/meta/handshake') {
                 message.ext.ack = _cometd && _cometd.ackEnabled !== false;
                 _serverSupportsAcks = false;
-                _transientBatch = 0;
                 _batch = 0;
-                _size = 0;
-            } else if (channel == '/meta/connect') {
+            } else if (channel === '/meta/connect') {
                 if (_serverSupportsAcks) {
                     message.ext.ack = _batch;
                     _debug('AckExtension: client sending batch', _batch);
