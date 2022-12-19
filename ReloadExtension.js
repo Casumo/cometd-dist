@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-(((root, factory) => {
+(function(root, factory) {
     if (typeof exports === 'object') {
         module.exports = factory(require('./cometd'));
     } else if (typeof define === 'function' && define.amd) {
@@ -22,7 +22,7 @@
     } else {
         factory(root.org.cometd);
     }
-})(this, cometdModule => {
+}(this, function(cometdModule) {
     /**
      * The reload extension allows a page to be loaded (or reloaded)
      * without having to re-handshake in the new (or reloaded) page,
@@ -38,22 +38,22 @@
      * maintaining the same CometD clientId.
      */
     return cometdModule.ReloadExtension = function(configuration) {
-        let _cometd;
-        let _debug;
-        let _state = {};
-        let _name = 'org.cometd.reload';
-        let _batch = false;
-        let _reloading = false;
+        var _cometd;
+        var _debug;
+        var _state = {};
+        var _name = 'org.cometd.reload';
+        var _batch = false;
+        var _reloading = false;
 
         function _reload(config) {
             if (_state.handshakeResponse) {
                 _reloading = true;
-                const transport = _cometd.getTransport();
+                var transport = _cometd.getTransport();
                 if (transport) {
                     transport.abort();
                 }
                 _configure(config);
-                const state = JSON.stringify(_state);
+                var state = JSON.stringify(_state);
                 _debug('Reload extension saving state', state);
                 window.sessionStorage.setItem(_name, state);
             }
@@ -84,13 +84,13 @@
 
         this._receive = _receive;
 
-        this.registered = (name, cometd) => {
+        this.registered = function(name, cometd) {
             _cometd = cometd;
             _cometd.reload = _reload;
             _debug = _cometd._debug;
         };
 
-        this.unregistered = () => {
+        this.unregistered = function() {
             delete _cometd.reload;
             _cometd = null;
         };
@@ -101,12 +101,12 @@
                     _state = {};
                     _state.url = _cometd.getURL();
 
-                    const state = window.sessionStorage.getItem(_name);
+                    var state = window.sessionStorage.getItem(_name);
                     _debug('Reload extension found state', state);
                     // Is there a saved handshake response from a prior load ?
                     if (state) {
                         try {
-                            const oldState = JSON.parse(state);
+                            var oldState = JSON.parse(state);
 
                             // Remove the state, not needed anymore
                             window.sessionStorage.removeItem(_name);
@@ -117,9 +117,10 @@
                                 // Since we are going to abort this message,
                                 // we must save an eventual callback to restore
                                 // it when we replay the handshake response.
-                                const callback = _cometd._getCallback(message.id);
+                                var callback = _cometd._getCallback(message.id);
 
-                                setTimeout(() => {
+                                var self = this;
+                                setTimeout(function() {
                                     _debug('Reload extension replaying handshake response', oldState.handshakeResponse);
                                     _state.handshakeResponse = oldState.handshakeResponse;
                                     _state.transportType = oldState.transportType;
@@ -127,7 +128,7 @@
                                     // Restore the callback.
                                     _cometd._putCallback(message.id, callback);
 
-                                    const response = _cometd._mixin(true, {}, _state.handshakeResponse, {
+                                    var response = _cometd._mixin(true, {}, _state.handshakeResponse, {
                                         // Keep the response message id the same as the request.
                                         id: message.id,
                                         // Tells applications this is a handshake replayed by the reload extension.
@@ -138,7 +139,7 @@
                                     // Use the same transport as before.
                                     response.supportedConnectionTypes = [_state.transportType];
 
-                                    this._receive(response);
+                                    self._receive(response);
                                     _debug('Reload extension replayed handshake response', response);
                                 }, 0);
 
@@ -191,7 +192,7 @@
             return message;
         };
 
-        this.incoming = message => {
+        this.incoming = function(message) {
             switch (message.channel) {
                 case '/meta/handshake': {
                     // Only record the handshake response if it's successful.

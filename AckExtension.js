@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-(((root, factory) => {
+(function(root, factory) {
     if (typeof exports === 'object') {
         module.exports = factory(require('./cometd'));
     } else if (typeof define === 'function' && define.amd) {
@@ -22,7 +22,7 @@
     } else {
         factory(root.org.cometd);
     }
-})(this, cometdModule => {
+}(this, function(cometdModule) {
     /**
      * This client-side extension enables the client to acknowledge to the server
      * the messages that the client has received.
@@ -38,34 +38,34 @@
      * acknowledged when the /meta/connect returns.
      */
     return cometdModule.AckExtension = function() {
-        let _cometd;
-        let _serverSupportsAcks = false;
-        let _batch;
+        var _cometd;
+        var _serverSupportsAcks = false;
+        var _batch;
 
         function _debug(text, args) {
             _cometd._debug(text, args);
         }
 
-        this.registered = (name, cometd) => {
+        this.registered = function(name, cometd) {
             _cometd = cometd;
             _debug('AckExtension: executing registration callback');
         };
 
-        this.unregistered = () => {
+        this.unregistered = function() {
             _debug('AckExtension: executing unregistration callback');
             _cometd = null;
         };
 
-        this.incoming = message => {
-            const channel = message.channel;
-            const ext = message.ext;
+        this.incoming = function(message) {
+            var channel = message.channel;
+            var ext = message.ext;
             if (channel === '/meta/handshake') {
                 if (ext) {
-                    const ackField = ext.ack;
+                    var ackField = ext.ack;
                     if (typeof ackField === 'object') {
                         // New format.
                         _serverSupportsAcks = ackField.enabled === true;
-                        const batch = ackField.batch;
+                        var batch = ackField.batch;
                         if (typeof batch === 'number') {
                             _batch = batch;
                         }
@@ -84,8 +84,8 @@
             return message;
         };
 
-        this.outgoing = message => {
-            const channel = message.channel;
+        this.outgoing = function(message) {
+            var channel = message.channel;
             if (!message.ext) {
                 message.ext = {};
             }
