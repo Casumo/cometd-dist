@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-/* CometD Version 7.0.9 */
+/* CometD Version 5.0.14 */
 
-(((root, factory) => {
+(function(root, factory) {
     if (typeof exports === 'object') {
         // CommonJS.
         module.exports = factory();
@@ -28,42 +28,44 @@
         root.org = root.org || {};
         root.org.cometd = factory();
     }
-})(this, () => {
+}(this, function() {
     /**
      * Browsers may throttle the Window scheduler,
      * so we may replace it with a Worker scheduler.
      */
-    function Scheduler() {
-        let _ids = 0;
-        const _tasks = {};
-        this.register = funktion => {
-            const id = ++_ids;
+    var Scheduler = function() {
+        var _ids = 0;
+        var _tasks = {};
+        this.register = function(funktion) {
+            var id = ++_ids;
             _tasks[id] = funktion;
             return id;
         };
-        this.unregister = id => {
-            const funktion = _tasks[id];
+        this.unregister = function(id) {
+            var funktion = _tasks[id];
             delete _tasks[id];
             return funktion;
         };
-        this.setTimeout = (funktion, delay) => window.setTimeout(funktion, delay);
-        this.clearTimeout = id => {
+        this.setTimeout = function(funktion, delay) {
+            return window.setTimeout(funktion, delay);
+        };
+        this.clearTimeout = function(id) {
             window.clearTimeout(id);
         };
-    }
+    };
 
     /**
      * The scheduler code that will run in the Worker.
      * Workers have a built-in `self` variable similar to `window`.
      */
     function WorkerScheduler() {
-        const _tasks = {};
-        self.onmessage = e => {
-            const cmd = e.data;
-            const id = _tasks[cmd.id];
+        var _tasks = {};
+        self.onmessage = function(e) {
+            var cmd = e.data;
+            var id = _tasks[cmd.id];
             switch (cmd.type) {
                 case 'setTimeout':
-                    _tasks[cmd.id] = self.setTimeout(() => {
+                    _tasks[cmd.id] = self.setTimeout(function() {
                         delete _tasks[cmd.id];
                         self.postMessage({
                             id: cmd.id
@@ -86,12 +88,32 @@
     /**
      * Utility functions.
      */
-    const Utils = {
-        isString: value => {
+    var Utils = {
+        isString: function(value) {
             if (value === undefined || value === null) {
                 return false;
             }
             return typeof value === 'string' || value instanceof String;
+        },
+        isArray: function(value) {
+            if (value === undefined || value === null) {
+                return false;
+            }
+            return value instanceof Array;
+        },
+        /**
+         * Returns whether the given element is contained into the given array.
+         * @param element the element to check presence for
+         * @param array the array to check for the element presence
+         * @return the index of the element, if present, or a negative index if the element is not present
+         */
+        inArray: function(element, array) {
+            for (var i = 0; i < array.length; ++i) {
+                if (element === array[i]) {
+                    return i;
+                }
+            }
+            return -1;
         }
     };
 
@@ -99,16 +121,18 @@
     /**
      * A registry for transports used by the CometD object.
      */
-    function TransportRegistry() {
-        let _types = [];
-        let _transports = {};
+    var TransportRegistry = function() {
+        var _types = [];
+        var _transports = {};
 
-        this.getTransportTypes = () => _types.slice(0);
+        this.getTransportTypes = function() {
+            return _types.slice(0);
+        };
 
-        this.findTransportTypes = (version, crossDomain, url) => {
-            const result = [];
-            for (let i = 0; i < _types.length; ++i) {
-                const type = _types[i];
+        this.findTransportTypes = function(version, crossDomain, url) {
+            var result = [];
+            for (var i = 0; i < _types.length; ++i) {
+                var type = _types[i];
                 if (_transports[type].accept(version, crossDomain, url) === true) {
                     result.push(type);
                 }
@@ -116,12 +140,12 @@
             return result;
         };
 
-        this.negotiateTransport = (types, version, crossDomain, url) => {
-            for (let i = 0; i < _types.length; ++i) {
-                const type = _types[i];
-                for (let j = 0; j < types.length; ++j) {
+        this.negotiateTransport = function(types, version, crossDomain, url) {
+            for (var i = 0; i < _types.length; ++i) {
+                var type = _types[i];
+                for (var j = 0; j < types.length; ++j) {
                     if (type === types[j]) {
-                        const transport = _transports[type];
+                        var transport = _transports[type];
                         if (transport.accept(version, crossDomain, url) === true) {
                             return transport;
                         }
@@ -131,9 +155,9 @@
             return null;
         };
 
-        this.add = (type, transport, index) => {
-            let existing = false;
-            for (let i = 0; i < _types.length; ++i) {
+        this.add = function(type, transport, index) {
+            var existing = false;
+            for (var i = 0; i < _types.length; ++i) {
                 if (_types[i] === type) {
                     existing = true;
                     break;
@@ -152,8 +176,8 @@
             return !existing;
         };
 
-        this.find = type => {
-            for (let i = 0; i < _types.length; ++i) {
+        this.find = function(type) {
+            for (var i = 0; i < _types.length; ++i) {
                 if (_types[i] === type) {
                     return _transports[type];
                 }
@@ -161,11 +185,11 @@
             return null;
         };
 
-        this.remove = type => {
-            for (let i = 0; i < _types.length; ++i) {
+        this.remove = function(type) {
+            for (var i = 0; i < _types.length; ++i) {
                 if (_types[i] === type) {
                     _types.splice(i, 1);
-                    const transport = _transports[type];
+                    var transport = _transports[type];
                     delete _transports[type];
                     return transport;
                 }
@@ -173,26 +197,26 @@
             return null;
         };
 
-        this.clear = () => {
+        this.clear = function() {
             _types = [];
             _transports = {};
         };
 
-        this.reset = init => {
-            for (let i = 0; i < _types.length; ++i) {
+        this.reset = function(init) {
+            for (var i = 0; i < _types.length; ++i) {
                 _transports[_types[i]].reset(init);
             }
         };
-    }
+    };
 
 
     /**
      * Base object with the common functionality for transports.
      */
-    function Transport() {
-        let _type;
-        let _cometd;
-        let _url;
+    var Transport = function() {
+        var _type;
+        var _cometd;
+        var _url;
 
         /**
          * Function invoked just after a transport has been successfully registered.
@@ -200,7 +224,7 @@
          * @param cometd the cometd object this transport has been registered to
          * @see #unregistered()
          */
-        this.registered = (type, cometd) => {
+        this.registered = function(type, cometd) {
             _type = type;
             _cometd = cometd;
         };
@@ -209,18 +233,18 @@
          * Function invoked just after a transport has been successfully unregistered.
          * @see #registered(type, cometd)
          */
-        this.unregistered = () => {
+        this.unregistered = function() {
             _type = null;
             _cometd = null;
         };
 
         this._notifyTransportTimeout = function(messages) {
-            const callbacks = _cometd._getTransportListeners('timeout');
+            var callbacks = _cometd._getTransportListeners('timeout');
             if (callbacks) {
-                for (let i = 0; i < callbacks.length; ++i) {
-                    const listener = callbacks[i];
+                for (var i = 0; i < callbacks.length; ++i) {
+                    var listener = callbacks[i];
                     try {
-                        const result = listener.call(this, messages);
+                        var result = listener.call(this, messages);
                         if (typeof result === 'number' && result > 0) {
                             return result;
                         }
@@ -244,25 +268,31 @@
             return _cometd._mixin.apply(_cometd, arguments);
         };
 
-        this.getConfiguration = () => _cometd.getConfiguration();
+        this.getConfiguration = function() {
+            return _cometd.getConfiguration();
+        };
 
-        this.getAdvice = () => _cometd.getAdvice();
+        this.getAdvice = function() {
+            return _cometd.getAdvice();
+        };
 
-        this.setTimeout = (funktion, delay) => _cometd.setTimeout(funktion, delay);
+        this.setTimeout = function(funktion, delay) {
+            return _cometd.setTimeout(funktion, delay);
+        };
 
-        this.clearTimeout = id => {
+        this.clearTimeout = function(id) {
             _cometd.clearTimeout(id);
         };
 
         this.convertToJSON = function(messages) {
-            const maxSize = this.getConfiguration().maxSendBayeuxMessageSize;
-            let result = '[';
-            for (let i = 0; i < messages.length; ++i) {
+            var maxSize = this.getConfiguration().maxSendBayeuxMessageSize;
+            var result = '[';
+            for (var i = 0; i < messages.length; ++i) {
                 if (i > 0) {
                     result += ',';
                 }
-                const message = messages[i];
-                const json = JSON.stringify(message);
+                var message = messages[i];
+                var json = JSON.stringify(message);
                 if (json.length > maxSize) {
                     throw 'maxSendBayeuxMessageSize ' + maxSize + ' exceeded';
                 }
@@ -286,7 +316,7 @@
                     throw x;
                 }
             }
-            if (Array.isArray(response)) {
+            if (Utils.isArray(response)) {
                 return response;
             }
             if (response === undefined || response === null) {
@@ -306,7 +336,7 @@
          * @return true if this transport can work for the given version and cross domain communication case,
          * false otherwise
          */
-        this.accept = (version, crossDomain, url) => {
+        this.accept = function(version, crossDomain, url) {
             throw 'Abstract';
         };
 
@@ -314,15 +344,19 @@
          * Returns the type of this transport.
          * @see #registered(type, cometd)
          */
-        this.getType = () => _type;
+        this.getType = function() {
+            return _type;
+        };
 
-        this.getURL = () => _url;
+        this.getURL = function() {
+            return _url;
+        };
 
-        this.setURL = url => {
+        this.setURL = function(url) {
             _url = url;
         };
 
-        this.send = (envelope, metaConnect) => {
+        this.send = function(envelope, metaConnect) {
             throw 'Abstract';
         };
 
@@ -337,9 +371,9 @@
         this.toString = function() {
             return this.getType();
         };
-    }
+    };
 
-    Transport.derive = baseObject => {
+    Transport.derive = function(baseObject) {
         function F() {
         }
 
@@ -355,19 +389,19 @@
      * To achieve this, we have one reserved request for the long poll, and all other
      * requests are serialized one after the other.
      */
-    function RequestTransport() {
-        const _super = new Transport();
-        const _self = Transport.derive(_super);
-        let _requestIds = 0;
-        let _metaConnectRequest = null;
-        let _requests = [];
-        let _envelopes = [];
+    var RequestTransport = function() {
+        var _super = new Transport();
+        var _self = Transport.derive(_super);
+        var _requestIds = 0;
+        var _metaConnectRequest = null;
+        var _requests = [];
+        var _envelopes = [];
 
         function _coalesceEnvelopes(envelope) {
             while (_envelopes.length > 0) {
-                const envelopeAndRequest = _envelopes[0];
-                const newEnvelope = envelopeAndRequest[0];
-                const newRequest = envelopeAndRequest[1];
+                var envelopeAndRequest = _envelopes[0];
+                var newEnvelope = envelopeAndRequest[0];
+                var newRequest = envelopeAndRequest[1];
                 if (newEnvelope.url === envelope.url &&
                     newEnvelope.sync === envelope.sync) {
                     _envelopes.shift();
@@ -380,19 +414,20 @@
         }
 
         function _onTransportTimeout(envelope, request, delay) {
-            const result = this._notifyTransportTimeout(envelope.messages);
+            var result = this._notifyTransportTimeout(envelope.messages);
             if (result > 0) {
                 this._debug('Transport', this.getType(), 'extended waiting for message replies of request', request.id, ':', result, 'ms');
-                request.timeout = this.setTimeout(() => {
-                    _onTransportTimeout.call(this, envelope, request, delay + result);
+                var self = this;
+                request.timeout = this.setTimeout(function() {
+                    _onTransportTimeout.call(self, envelope, request, delay + result);
                 }, result);
             } else {
                 request.expired = true;
-                const errorMessage = 'Transport ' + this.getType() + ' expired waiting for message replies of request ' + request.id + ': ' + delay + ' ms';
-                const failure = {
+                var errorMessage = 'Transport ' + this.getType() + ' expired waiting for message replies of request ' + request.id + ': ' + delay + ' ms';
+                var failure = {
                     reason: errorMessage
                 };
-                const xhr = request.xhr;
+                var xhr = request.xhr;
                 failure.httpCode = this.xhrStatus(xhr);
                 this.abortXHR(xhr);
                 this._debug(errorMessage);
@@ -404,25 +439,25 @@
         function _transportSend(envelope, request) {
             if (this.transportSend(envelope, request)) {
                 request.expired = false;
-
                 if (!envelope.sync) {
-                    let delay = this.getConfiguration().maxNetworkDelay;
+                    var delay = this.getConfiguration().maxNetworkDelay;
                     if (request.metaConnect === true) {
                         delay += this.getAdvice().timeout;
                     }
 
                     this._debug('Transport', this.getType(), 'started waiting for message replies of request', request.id, ':', delay, 'ms');
 
-                    request.timeout = this.setTimeout(() => {
-                        _onTransportTimeout.call(this, envelope, request, delay);
+                    var self = this;
+                    request.timeout = this.setTimeout(function() {
+                        _onTransportTimeout.call(self, envelope, request, delay);
                     }, delay);
                 }
             }
         }
 
         function _queueSend(envelope) {
-            const requestId = ++_requestIds;
-            const request = {
+            var requestId = ++_requestIds;
+            var request = {
                 id: requestId,
                 metaConnect: false,
                 envelope: envelope
@@ -439,7 +474,7 @@
         }
 
         function _metaConnectComplete(request) {
-            const requestId = request.id;
+            var requestId = request.id;
             this._debug('Transport', this.getType(), '/meta/connect complete, request', requestId);
             if (_metaConnectRequest !== null && _metaConnectRequest.id !== requestId) {
                 throw '/meta/connect request mismatch, completing request ' + requestId;
@@ -448,16 +483,16 @@
         }
 
         function _complete(request, success) {
-            const index = _requests.indexOf(request);
+            var index = Utils.inArray(request, _requests);
             // The index can be negative if the request has been aborted
             if (index >= 0) {
                 _requests.splice(index, 1);
             }
 
             if (_envelopes.length > 0) {
-                const envelopeAndRequest = _envelopes.shift();
-                const nextEnvelope = envelopeAndRequest[0];
-                const nextRequest = envelopeAndRequest[1];
+                var envelopeAndRequest = _envelopes.shift();
+                var nextEnvelope = envelopeAndRequest[0];
+                var nextRequest = envelopeAndRequest[1];
                 this._debug('Transport dequeued request', nextRequest.id);
                 if (success) {
                     if (this.getConfiguration().autoBatch) {
@@ -467,13 +502,14 @@
                     this._debug('Transport completed request', request.id, nextEnvelope);
                 } else {
                     // Keep the semantic of calling callbacks asynchronously.
-                    this.setTimeout(() => {
-                        this.complete(nextRequest, false, nextRequest.metaConnect);
-                        const failure = {
+                    var self = this;
+                    this.setTimeout(function() {
+                        self.complete(nextRequest, false, nextRequest.metaConnect);
+                        var failure = {
                             reason: 'Previous request failed'
                         };
-                        const xhr = nextRequest.xhr;
-                        failure.httpCode = this.xhrStatus(xhr);
+                        var xhr = nextRequest.xhr;
+                        failure.httpCode = self.xhrStatus(xhr);
                         nextEnvelope.onFailure(xhr, nextEnvelope.messages, failure);
                     }, 0);
                 }
@@ -494,7 +530,7 @@
          * @param request the request information
          * @return {boolean} whether the send succeeded
          */
-        _self.transportSend = (envelope, request) => {
+        _self.transportSend = function(envelope, request) {
             throw 'Abstract';
         };
 
@@ -527,9 +563,9 @@
                 throw 'Concurrent /meta/connect requests not allowed, request id=' + _metaConnectRequest.id + ' not yet completed';
             }
 
-            const requestId = ++_requestIds;
+            var requestId = ++_requestIds;
             this._debug('Transport', this.getType(), '/meta/connect send, request', requestId, 'envelope', envelope);
-            const request = {
+            var request = {
                 id: requestId,
                 metaConnect: true,
                 envelope: envelope
@@ -548,8 +584,8 @@
 
         _self.abort = function() {
             _super.abort();
-            for (let i = 0; i < _requests.length; ++i) {
-                const request = _requests[i];
+            for (var i = 0; i < _requests.length; ++i) {
+                var request = _requests[i];
                 if (request) {
                     this._debug('Aborting request', request);
                     if (!this.abortXHR(request.xhr)) {
@@ -557,7 +593,7 @@
                     }
                 }
             }
-            const metaConnectRequest = _metaConnectRequest;
+            var metaConnectRequest = _metaConnectRequest;
             if (metaConnectRequest) {
                 this._debug('Aborting /meta/connect request', metaConnectRequest);
                 if (!this.abortXHR(metaConnectRequest.xhr)) {
@@ -567,7 +603,7 @@
             this.reset(true);
         };
 
-        _self.reset = init => {
+        _self.reset = function(init) {
             _super.reset(init);
             _metaConnectRequest = null;
             _requests = [];
@@ -577,7 +613,7 @@
         _self.abortXHR = function(xhr) {
             if (xhr) {
                 try {
-                    const state = xhr.readyState;
+                    var state = xhr.readyState;
                     xhr.abort();
                     return state !== window.XMLHttpRequest.UNSENT;
                 } catch (x) {
@@ -599,18 +635,22 @@
         };
 
         return _self;
-    }
+    };
 
 
-    function LongPollingTransport() {
-        const _super = new RequestTransport();
-        const _self = Transport.derive(_super);
+    var LongPollingTransport = function() {
+        var _super = new RequestTransport();
+        var _self = Transport.derive(_super);
         // By default, support cross domain
-        let _supportsCrossDomain = true;
+        var _supportsCrossDomain = true;
 
-        _self.accept = (version, crossDomain, url) => _supportsCrossDomain || !crossDomain;
+        _self.accept = function(version, crossDomain, url) {
+            return _supportsCrossDomain || !crossDomain;
+        };
 
-        _self.newXMLHttpRequest = () => new window.XMLHttpRequest();
+        _self.newXMLHttpRequest = function() {
+            return new window.XMLHttpRequest();
+        };
 
         function _copyContext(xhr) {
             try {
@@ -623,28 +663,28 @@
             }
         }
 
-        _self.xhrSend = packet => {
-            const xhr = _self.newXMLHttpRequest();
+        _self.xhrSend = function(packet) {
+            var xhr = _self.newXMLHttpRequest();
             _copyContext(xhr);
             xhr.withCredentials = true;
             xhr.open('POST', packet.url, packet.sync !== true);
-            const headers = packet.headers;
+            var headers = packet.headers;
             if (headers) {
-                for (let headerName in headers) {
+                for (var headerName in headers) {
                     if (headers.hasOwnProperty(headerName)) {
                         xhr.setRequestHeader(headerName, headers[headerName]);
                     }
                 }
             }
             xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
-            xhr.onload = () => {
+            xhr.onload = function() {
                 if (xhr.status === 200) {
                     packet.onSuccess(xhr.responseText);
                 } else {
                     packet.onError(xhr.statusText);
                 }
             };
-            xhr.onabort = xhr.onerror = () => {
+            xhr.onabort = xhr.onerror = function() {
                 packet.onError(xhr.statusText);
             };
             xhr.send(packet.body);
@@ -654,55 +694,56 @@
         _self.transportSend = function(envelope, request) {
             this._debug('Transport', this.getType(), 'sending request', request.id, 'envelope', envelope);
 
+            var self = this;
             try {
-                let sameStack = true;
+                var sameStack = true;
                 request.xhr = this.xhrSend({
                     transport: this,
                     url: envelope.url,
                     sync: envelope.sync,
                     headers: this.getConfiguration().requestHeaders,
                     body: this.convertToJSON(envelope.messages),
-                    onSuccess: response => {
-                        this._debug('Transport', this.getType(), 'received response', response);
-                        let success = false;
+                    onSuccess: function(response) {
+                        self._debug('Transport', self.getType(), 'received response', response);
+                        var success = false;
                         try {
-                            const received = this.convertToMessages(response);
+                            var received = self.convertToMessages(response);
                             if (received.length === 0) {
                                 _supportsCrossDomain = false;
-                                this.transportFailure(envelope, request, {
+                                self.transportFailure(envelope, request, {
                                     httpCode: 204
                                 });
                             } else {
                                 success = true;
-                                this.transportSuccess(envelope, request, received);
+                                self.transportSuccess(envelope, request, received);
                             }
                         } catch (x) {
-                            this._debug(x);
+                            self._debug(x);
                             if (!success) {
                                 _supportsCrossDomain = false;
-                                const failure = {
+                                var failure = {
                                     exception: x
                                 };
-                                failure.httpCode = this.xhrStatus(request.xhr);
-                                this.transportFailure(envelope, request, failure);
+                                failure.httpCode = self.xhrStatus(request.xhr);
+                                self.transportFailure(envelope, request, failure);
                             }
                         }
                     },
-                    onError: (reason, exception) => {
-                        this._debug('Transport', this.getType(), 'received error', reason, exception);
+                    onError: function(reason, exception) {
+                        self._debug('Transport', self.getType(), 'received error', reason, exception);
                         _supportsCrossDomain = false;
-                        const failure = {
+                        var failure = {
                             reason: reason,
                             exception: exception
                         };
-                        failure.httpCode = this.xhrStatus(request.xhr);
+                        failure.httpCode = self.xhrStatus(request.xhr);
                         if (sameStack) {
                             // Keep the semantic of calling callbacks asynchronously.
-                            this.setTimeout(() => {
-                                this.transportFailure(envelope, request, failure);
+                            self.setTimeout(function() {
+                                self.transportFailure(envelope, request, failure);
                             }, 0);
                         } else {
-                            this.transportFailure(envelope, request, failure);
+                            self.transportFailure(envelope, request, failure);
                         }
                     }
                 });
@@ -712,8 +753,8 @@
                 this._debug('Transport', this.getType(), 'exception:', x);
                 _supportsCrossDomain = false;
                 // Keep the semantic of calling callbacks asynchronously.
-                this.setTimeout(() => {
-                    this.transportFailure(envelope, request, {
+                this.setTimeout(function() {
+                    self.transportFailure(envelope, request, {
                         exception: x
                     });
                 }, 0);
@@ -721,68 +762,73 @@
             }
         };
 
-        _self.reset = init => {
+        _self.reset = function(init) {
             _super.reset(init);
             _supportsCrossDomain = true;
         };
 
         return _self;
-    }
+    };
 
 
-    function CallbackPollingTransport() {
-        const _super = new RequestTransport();
-        const _self = Transport.derive(_super);
-        let jsonp = 0;
+    var CallbackPollingTransport = function() {
+        var _super = new RequestTransport();
+        var _self = Transport.derive(_super);
+        var jsonp = 0;
 
-        _self.accept = (version, crossDomain, url) => true;
+        _self.accept = function(version, crossDomain, url) {
+            return true;
+        };
 
-        _self.jsonpSend = packet => {
-            const head = document.getElementsByTagName('head')[0];
-            const script = document.createElement('script');
+        _self.jsonpSend = function(packet) {
+            var head = document.getElementsByTagName('head')[0];
+            var script = document.createElement('script');
 
-            const callbackName = '_cometd_jsonp_' + jsonp++;
-            window[callbackName] = responseText => {
+            var callbackName = '_cometd_jsonp_' + jsonp++;
+            window[callbackName] = function(responseText) {
                 head.removeChild(script);
                 delete window[callbackName];
                 packet.onSuccess(responseText);
             };
 
-            let url = packet.url;
+            var url = packet.url;
             url += url.indexOf('?') < 0 ? '?' : '&';
             url += 'jsonp=' + callbackName;
             url += '&message=' + encodeURIComponent(packet.body);
             script.src = url;
             script.async = packet.sync !== true;
             script.type = 'application/javascript';
-            script.onerror = e => {
+            script.onerror = function(e) {
                 packet.onError('jsonp ' + e.type);
             };
             head.appendChild(script);
         };
 
         function _failTransportFn(envelope, request, x) {
-            return () => {
-                this.transportFailure(envelope, request, 'error', x);
+            var self = this;
+            return function() {
+                self.transportFailure(envelope, request, 'error', x);
             };
         }
 
         _self.transportSend = function(envelope, request) {
+            var self = this;
+
             // Microsoft Internet Explorer has a 2083 URL max length
             // We must ensure that we stay within that length
-            let start = 0;
-            let length = envelope.messages.length;
-            const lengths = [];
+            var start = 0;
+            var length = envelope.messages.length;
+            var lengths = [];
             while (length > 0) {
                 // Encode the messages because all brackets, quotes, commas, colons, etc
                 // present in the JSON will be URL encoded, taking many more characters
-                const json = JSON.stringify(envelope.messages.slice(start, start + length));
-                const urlLength = envelope.url.length + encodeURI(json).length;
+                var json = JSON.stringify(envelope.messages.slice(start, start + length));
+                var urlLength = envelope.url.length + encodeURI(json).length;
 
-                const maxLength = this.getConfiguration().maxURILength;
+                var maxLength = this.getConfiguration().maxURILength;
                 if (urlLength > maxLength) {
                     if (length === 1) {
-                        const x = 'Bayeux message too big (' + urlLength + ' bytes, max is ' + maxLength + ') ' +
+                        var x = 'Bayeux message too big (' + urlLength + ' bytes, max is ' + maxLength + ') ' +
                             'for transport ' + this.getType();
                         // Keep the semantic of calling callbacks asynchronously.
                         this.setTimeout(_failTransportFn.call(this, envelope, request, x), 0);
@@ -800,18 +846,18 @@
 
             // Here we are sure that the messages can be sent within the URL limit
 
-            let envelopeToSend = envelope;
+            var envelopeToSend = envelope;
             if (lengths.length > 1) {
-                let begin = 0;
-                let end = lengths[0];
+                var begin = 0;
+                var end = lengths[0];
                 this._debug('Transport', this.getType(), 'split', envelope.messages.length, 'messages into', lengths.join(' + '));
                 envelopeToSend = this._mixin(false, {}, envelope);
                 envelopeToSend.messages = envelope.messages.slice(begin, end);
                 envelopeToSend.onSuccess = envelope.onSuccess;
                 envelopeToSend.onFailure = envelope.onFailure;
 
-                for (let i = 1; i < lengths.length; ++i) {
-                    const nextEnvelope = this._mixin(false, {}, envelope);
+                for (var i = 1; i < lengths.length; ++i) {
+                    var nextEnvelope = this._mixin(false, {}, envelope);
                     begin = end;
                     end += lengths[i];
                     nextEnvelope.messages = envelope.messages.slice(begin, end);
@@ -824,46 +870,46 @@
             this._debug('Transport', this.getType(), 'sending request', request.id, 'envelope', envelopeToSend);
 
             try {
-                let sameStack = true;
+                var sameStack = true;
                 this.jsonpSend({
                     transport: this,
                     url: envelopeToSend.url,
                     sync: envelopeToSend.sync,
                     headers: this.getConfiguration().requestHeaders,
                     body: JSON.stringify(envelopeToSend.messages),
-                    onSuccess: responses => {
-                        let success = false;
+                    onSuccess: function(responses) {
+                        var success = false;
                         try {
-                            const received = this.convertToMessages(responses);
+                            var received = self.convertToMessages(responses);
                             if (received.length === 0) {
-                                this.transportFailure(envelopeToSend, request, {
+                                self.transportFailure(envelopeToSend, request, {
                                     httpCode: 204
                                 });
                             } else {
                                 success = true;
-                                this.transportSuccess(envelopeToSend, request, received);
+                                self.transportSuccess(envelopeToSend, request, received);
                             }
                         } catch (x) {
-                            this._debug(x);
+                            self._debug(x);
                             if (!success) {
-                                this.transportFailure(envelopeToSend, request, {
+                                self.transportFailure(envelopeToSend, request, {
                                     exception: x
                                 });
                             }
                         }
                     },
-                    onError: (reason, exception) => {
-                        const failure = {
+                    onError: function(reason, exception) {
+                        var failure = {
                             reason: reason,
                             exception: exception
                         };
                         if (sameStack) {
                             // Keep the semantic of calling callbacks asynchronously.
-                            this.setTimeout(() => {
-                                this.transportFailure(envelopeToSend, request, failure);
+                            self.setTimeout(function() {
+                                self.transportFailure(envelopeToSend, request, failure);
                             }, 0);
                         } else {
-                            this.transportFailure(envelopeToSend, request, failure);
+                            self.transportFailure(envelopeToSend, request, failure);
                         }
                     }
                 });
@@ -871,8 +917,8 @@
                 return true;
             } catch (xx) {
                 // Keep the semantic of calling callbacks asynchronously.
-                this.setTimeout(() => {
-                    this.transportFailure(envelopeToSend, request, {
+                this.setTimeout(function() {
+                    self.transportFailure(envelopeToSend, request, {
                         exception: xx
                     });
                 }, 0);
@@ -881,26 +927,26 @@
         };
 
         return _self;
-    }
+    };
 
 
-    function WebSocketTransport() {
-        const _super = new Transport();
-        const _self = Transport.derive(_super);
-        let _cometd;
+    var WebSocketTransport = function() {
+        var _super = new Transport();
+        var _self = Transport.derive(_super);
+        var _cometd;
         // By default WebSocket is supported
-        let _webSocketSupported = true;
+        var _webSocketSupported = true;
         // Whether we were able to establish a WebSocket connection
-        let _webSocketConnected = false;
-        let _stickyReconnect = true;
+        var _webSocketConnected = false;
+        var _stickyReconnect = true;
         // The context contains the envelopes that have been sent
         // and the timeouts for the messages that have been sent.
-        let _context = null;
-        let _connecting = null;
-        let _connected = false;
-        let _successCallback = null;
+        var _context = null;
+        var _connecting = null;
+        var _connected = false;
+        var _successCallback = null;
 
-        _self.reset = init => {
+        _self.reset = function(init) {
             _super.reset(init);
             _webSocketSupported = true;
             if (init) {
@@ -929,9 +975,9 @@
         }
 
         function _storeEnvelope(context, envelope, metaConnect) {
-            const messageIds = [];
-            for (let i = 0; i < envelope.messages.length; ++i) {
-                const message = envelope.messages[i];
+            var messageIds = [];
+            for (var i = 0; i < envelope.messages.length; ++i) {
+                var message = envelope.messages[i];
                 if (message.id) {
                     messageIds.push(message.id);
                 }
@@ -941,19 +987,19 @@
         }
 
         function _removeEnvelope(context, messageIds) {
-            let removed = false;
-            const envelopes = context.envelopes;
-            for (let j = 0; j < messageIds.length; ++j) {
-                const id = messageIds[j];
-                for (let key in envelopes) {
+            var removed = false;
+            var envelopes = context.envelopes;
+            for (var j = 0; j < messageIds.length; ++j) {
+                var id = messageIds[j];
+                for (var key in envelopes) {
                     if (envelopes.hasOwnProperty(key)) {
-                        const ids = key.split(',');
-                        const index = ids.indexOf(id);
+                        var ids = key.split(',');
+                        var index = Utils.inArray(id, ids);
                         if (index >= 0) {
                             removed = true;
                             ids.splice(index, 1);
-                            const envelope = envelopes[key][0];
-                            const metaConnect = envelopes[key][1];
+                            var envelope = envelopes[key][0];
+                            var metaConnect = envelopes[key][1];
                             delete envelopes[key];
                             if (ids.length > 0) {
                                 envelopes[ids.join(',')] = [envelope, metaConnect];
@@ -978,11 +1024,11 @@
             }
 
             // Mangle the URL, changing the scheme from 'http' to 'ws'.
-            const url = _cometd.getURL().replace(/^http/, 'ws');
+            var url = _cometd.getURL().replace(/^http/, 'ws');
             this._debug('Transport', this.getType(), 'connecting to URL', url);
 
             try {
-                const protocol = _cometd.getConfiguration().protocol;
+                var protocol = _cometd.getConfiguration().protocol;
                 context.webSocket = protocol ? new window.WebSocket(url, protocol) : new window.WebSocket(url);
                 _connecting = context;
             } catch (x) {
@@ -994,30 +1040,31 @@
             // By default use sticky reconnects.
             _stickyReconnect = _cometd.getConfiguration().stickyReconnect !== false;
 
-            const connectTimeout = _cometd.getConfiguration().connectTimeout;
+            var self = this;
+            var connectTimeout = _cometd.getConfiguration().connectTimeout;
             if (connectTimeout > 0) {
-                context.connectTimer = this.setTimeout(() => {
-                    _cometd._debug('Transport', this.getType(), 'timed out while connecting to URL', url, ':', connectTimeout, 'ms');
+                context.connectTimer = this.setTimeout(function() {
+                    _cometd._debug('Transport', self.getType(), 'timed out while connecting to URL', url, ':', connectTimeout, 'ms');
                     // The connection was not opened, close anyway.
-                    _forceClose.call(this, context, {code: 1000, reason: 'Connect Timeout'});
+                    _forceClose.call(self, context, {code: 1000, reason: 'Connect Timeout'});
                 }, connectTimeout);
             }
 
-            const onopen = () => {
+            var onopen = function() {
                 _cometd._debug('WebSocket onopen', context);
                 if (context.connectTimer) {
-                    this.clearTimeout(context.connectTimer);
+                    self.clearTimeout(context.connectTimer);
                 }
 
                 if (_sameContext(context)) {
                     _connecting = null;
                     _context = context;
                     _webSocketConnected = true;
-                    this.onOpen(context);
+                    self.onOpen(context);
                 } else {
                     // We have a valid connection already, close this one.
                     _cometd._warn('Closing extra WebSocket connection', this, 'active connection', _context);
-                    _forceClose.call(this, context, {code: 1000, reason: 'Extra Connection'});
+                    _forceClose.call(self, context, {code: 1000, reason: 'Extra Connection'});
                 }
             };
 
@@ -1025,25 +1072,25 @@
             // The close frame for a connection may arrive *after* another
             // connection has been opened, so we must make sure that actions
             // are performed only if it's the same connection.
-            const onclose = event => {
+            var onclose = function(event) {
                 event = event || {code: 1000};
                 _cometd._debug('WebSocket onclose', context, event, 'connecting', _connecting, 'current', _context);
 
                 if (context.connectTimer) {
-                    this.clearTimeout(context.connectTimer);
+                    self.clearTimeout(context.connectTimer);
                 }
 
-                this.onClose(context, event);
+                self.onClose(context, event);
             };
 
-            const onmessage = wsMessage => {
+            var onmessage = function(wsMessage) {
                 _cometd._debug('WebSocket onmessage', wsMessage, context);
-                this.onMessage(context, wsMessage);
+                self.onMessage(context, wsMessage);
             };
 
             context.webSocket.onopen = onopen;
             context.webSocket.onclose = onclose;
-            context.webSocket.onerror = () => {
+            context.webSocket.onerror = function() {
                 // Clients should call onclose(), but if they do not we do it here for safety.
                 onclose({code: 1000, reason: 'Error'});
             };
@@ -1053,11 +1100,12 @@
         }
 
         function _onTransportTimeout(context, message, delay) {
-            const result = this._notifyTransportTimeout([message]);
+            var result = this._notifyTransportTimeout([message]);
             if (result > 0) {
                 this._debug('Transport', this.getType(), 'extended waiting for message replies:', result, 'ms');
-                context.timeouts[message.id] = this.setTimeout(() => {
-                    _onTransportTimeout.call(this, context, message, delay + result);
+                var self = this;
+                context.timeouts[message.id] = this.setTimeout(function() {
+                    _onTransportTimeout.call(self, context, message, delay + result);
                 }, result);
             } else {
                 this._debug('Transport', this.getType(), 'expired waiting for message reply', message.id, ':', delay, 'ms');
@@ -1066,20 +1114,21 @@
         }
 
         function _webSocketSend(context, envelope, metaConnect) {
-            let json;
+            var self = this;
+
             try {
-                json = this.convertToJSON(envelope.messages);
+                var json = this.convertToJSON(envelope.messages);
             } catch (x) {
                 this._debug('Transport', this.getType(), 'exception:', x);
-                const mIds = [];
-                for (let j = 0; j < envelope.messages.length; ++j) {
-                    const m = envelope.messages[j];
+                var mIds = [];
+                for (var j = 0; j < envelope.messages.length; ++j) {
+                    var m = envelope.messages[j];
                     mIds.push(m.id);
                 }
                 _removeEnvelope.call(this, context, mIds);
                 // Keep the semantic of calling callbacks asynchronously.
-                this.setTimeout(() => {
-                    this._notifyFailure(envelope.onFailure, context, envelope.messages, {
+                this.setTimeout(function() {
+                    self._notifyFailure(envelope.onFailure, context, envelope.messages, {
                         exception: x
                     });
                 }, 0);
@@ -1090,21 +1139,23 @@
             this._debug('Transport', this.getType(), 'sent', envelope, '/meta/connect =', metaConnect);
 
             // Manage the timeout waiting for the response.
-            let delay = this.getConfiguration().maxNetworkDelay;
+            var delay = this.getConfiguration().maxNetworkDelay;
             if (metaConnect) {
                 delay += this.getAdvice().timeout;
                 _connected = true;
             }
 
-            const messageIds = [];
-            for (let i = 0; i < envelope.messages.length; ++i) {
-                const message = envelope.messages[i];
-                if (message.id) {
-                    messageIds.push(message.id);
-                    context.timeouts[message.id] = this.setTimeout(() => {
-                        _onTransportTimeout.call(this, context, message, delay);
-                    }, delay);
-                }
+            var messageIds = [];
+            for (var i = 0; i < envelope.messages.length; ++i) {
+                (function() {
+                    var message = envelope.messages[i];
+                    if (message.id) {
+                        messageIds.push(message.id);
+                        context.timeouts[message.id] = self.setTimeout(function() {
+                            _onTransportTimeout.call(self, context, message, delay);
+                        }, delay);
+                    }
+                })();
             }
 
             this._debug('Transport', this.getType(), 'started waiting for message replies', delay, 'ms, messageIds:', messageIds, ', timeouts:', context.timeouts);
@@ -1133,8 +1184,9 @@
                 }
             } catch (x) {
                 // Keep the semantic of calling callbacks asynchronously.
-                this.setTimeout(() => {
-                    _forceClose.call(this, context, {
+                var self = this;
+                this.setTimeout(function() {
+                    _forceClose.call(self, context, {
                         code: 1000,
                         reason: 'Exception',
                         exception: x
@@ -1144,13 +1196,13 @@
         }
 
         _self.onOpen = function(context) {
-            const envelopes = context.envelopes;
+            var envelopes = context.envelopes;
             this._debug('Transport', this.getType(), 'opened', context, 'pending messages', envelopes);
-            for (let key in envelopes) {
+            for (var key in envelopes) {
                 if (envelopes.hasOwnProperty(key)) {
-                    const element = envelopes[key];
-                    const envelope = element[0];
-                    const metaConnect = element[1];
+                    var element = envelopes[key];
+                    var envelope = element[0];
+                    var metaConnect = element[1];
                     // Store the success callback, which is independent from the envelope,
                     // so that it can be used to notify arrival of messages.
                     _successCallback = envelope.onSuccess;
@@ -1162,11 +1214,11 @@
         _self.onMessage = function(context, wsMessage) {
             this._debug('Transport', this.getType(), 'received websocket message', wsMessage, context);
 
-            let close = false;
-            const messages = this.convertToMessages(wsMessage.data);
-            const messageIds = [];
-            for (let i = 0; i < messages.length; ++i) {
-                const message = messages[i];
+            var close = false;
+            var messages = this.convertToMessages(wsMessage.data);
+            var messageIds = [];
+            for (var i = 0; i < messages.length; ++i) {
+                var message = messages[i];
 
                 // Detect if the message is a response to a request we made.
                 // If it's a meta message, for sure it's a response; otherwise it's
@@ -1175,7 +1227,7 @@
                     if (message.id) {
                         messageIds.push(message.id);
 
-                        const timeout = context.timeouts[message.id];
+                        var timeout = context.timeouts[message.id];
                         if (timeout) {
                             this.clearTimeout(timeout);
                             delete context.timeouts[message.id];
@@ -1214,24 +1266,24 @@
                 _context = null;
             }
 
-            const timeouts = context.timeouts;
+            var timeouts = context.timeouts;
             context.timeouts = {};
-            for (let id in timeouts) {
+            for (var id in timeouts) {
                 if (timeouts.hasOwnProperty(id)) {
                     this.clearTimeout(timeouts[id]);
                 }
             }
 
-            const envelopes = context.envelopes;
+            var envelopes = context.envelopes;
             context.envelopes = {};
-            for (let key in envelopes) {
+            for (var key in envelopes) {
                 if (envelopes.hasOwnProperty(key)) {
-                    const envelope = envelopes[key][0];
-                    const metaConnect = envelopes[key][1];
+                    var envelope = envelopes[key][0];
+                    var metaConnect = envelopes[key][1];
                     if (metaConnect) {
                         _connected = false;
                     }
-                    const failure = {
+                    var failure = {
                         websocketCode: event.code,
                         reason: event.reason
                     };
@@ -1243,7 +1295,7 @@
             }
         };
 
-        _self.registered = (type, cometd) => {
+        _self.registered = function(type, cometd) {
             _super.registered(type, cometd);
             _cometd = cometd;
         };
@@ -1276,7 +1328,7 @@
         };
 
         return _self;
-    }
+    };
 
 
     /**
@@ -1284,36 +1336,36 @@
      * The default name is the string 'default'.
      * @param name the optional name of this cometd object
      */
-    function CometD(name) {
-        const _scheduler = new Scheduler();
-        const _cometd = this;
-        const _name = name || 'default';
-        let _crossDomain = false;
-        const _transports = new TransportRegistry();
-        let _transport;
-        let _status = 'disconnected';
-        let _messageId = 0;
-        let _clientId = null;
-        let _batch = 0;
-        let _messageQueue = [];
-        let _internalBatch = false;
-        let _listenerId = 0;
-        let _listeners = {};
-        const _transportListeners = {};
-        let _backoff = 0;
-        let _scheduledSend = null;
-        const _extensions = [];
-        let _advice = {};
-        let _handshakeProps;
-        let _handshakeCallback;
-        const _callbacks = {};
-        const _remoteCalls = {};
-        let _reestablish = false;
-        let _connected = false;
-        let _unconnectTime = 0;
-        let _handshakeMessages = 0;
-        let _metaConnect = null;
-        let _config = {
+    var CometD = function(name) {
+        var _scheduler = new Scheduler();
+        var _cometd = this;
+        var _name = name || 'default';
+        var _crossDomain = false;
+        var _transports = new TransportRegistry();
+        var _transport;
+        var _status = 'disconnected';
+        var _messageId = 0;
+        var _clientId = null;
+        var _batch = 0;
+        var _messageQueue = [];
+        var _internalBatch = false;
+        var _listenerId = 0;
+        var _listeners = {};
+        var _transportListeners = {};
+        var _backoff = 0;
+        var _scheduledSend = null;
+        var _extensions = [];
+        var _advice = {};
+        var _handshakeProps;
+        var _handshakeCallback;
+        var _callbacks = {};
+        var _remoteCalls = {};
+        var _reestablish = false;
+        var _connected = false;
+        var _unconnectTime = 0;
+        var _handshakeMessages = 0;
+        var _metaConnect = null;
+        var _config = {
             useWorkerScheduler: true,
             protocol: null,
             stickyReconnect: true,
@@ -1352,20 +1404,20 @@
          * @param objects the objects whose properties are copied into the target
          */
         this._mixin = function(deep, target, objects) {
-            const result = target || {};
+            var result = target || {};
 
             // Skip first 2 parameters (deep and target), and loop over the others
-            for (let i = 2; i < arguments.length; ++i) {
-                const object = arguments[i];
+            for (var i = 2; i < arguments.length; ++i) {
+                var object = arguments[i];
 
                 if (object === undefined || object === null) {
                     continue;
                 }
 
-                for (let propName in object) {
+                for (var propName in object) {
                     if (object.hasOwnProperty(propName)) {
-                        const prop = _fieldValue(object, propName);
-                        const targ = _fieldValue(result, propName);
+                        var prop = _fieldValue(object, propName);
+                        var targ = _fieldValue(result, propName);
 
                         // Avoid infinite loops
                         if (prop === target) {
@@ -1380,7 +1432,7 @@
                             if (prop instanceof Array) {
                                 result[propName] = this._mixin(deep, targ instanceof Array ? targ : [], prop);
                             } else {
-                                const source = typeof targ === 'object' && !(targ instanceof Array) ? targ : {};
+                                var source = typeof targ === 'object' && !(targ instanceof Array) ? targ : {};
                                 result[propName] = this._mixin(deep, source, prop);
                             }
                         } else {
@@ -1442,8 +1494,8 @@
             if (value.charAt(0) !== '/') {
                 return false;
             }
-            for (let i = 1; i < value.length; ++i) {
-                const char = value.charAt(i);
+            for (var i = 1; i < value.length; ++i) {
+                var char = value.charAt(i);
                 if (_isAlpha(char) || _isNumeric(char) || _isAllowed(char)) {
                     continue;
                 }
@@ -1460,7 +1512,7 @@
         }
 
         function _zeroPad(value, length) {
-            let result = '';
+            var result = '';
             while (--length > 0) {
                 if (value >= Math.pow(10, length)) {
                     break;
@@ -1473,9 +1525,9 @@
 
         function _log(level, args) {
             if (window.console) {
-                const logger = window.console[level];
+                var logger = window.console[level];
                 if (_isFunction(logger)) {
-                    const now = new Date();
+                    var now = new Date();
                     [].splice.call(args, 0, 0, _zeroPad(now.getHours(), 2) + ':' + _zeroPad(now.getMinutes(), 2) + ':' +
                         _zeroPad(now.getSeconds(), 2) + '.' + _zeroPad(now.getMilliseconds(), 3));
                     logger.apply(window.console, args);
@@ -1521,7 +1573,7 @@
          * @param hostAndPort the host and port in format host:port
          * @return whether the given hostAndPort is cross domain
          */
-        this._isCrossDomain = hostAndPort => {
+        this._isCrossDomain = function(hostAndPort) {
             if (window.location && window.location.host) {
                 if (hostAndPort) {
                     return hostAndPort !== window.location.host;
@@ -1544,16 +1596,16 @@
 
             _config = _cometd._mixin(false, _config, configuration);
 
-            const url = _cometd.getURL();
+            var url = _cometd.getURL();
             if (!url) {
                 throw 'Missing required configuration parameter \'url\' specifying the Bayeux server URL';
             }
 
             // Check if we're cross domain.
-            const urlParts = _splitURL(url);
-            const hostAndPort = urlParts[2];
-            const uri = urlParts[8];
-            const afterURI = urlParts[9];
+            var urlParts = _splitURL(url);
+            var hostAndPort = urlParts[2];
+            var uri = urlParts[8];
+            var afterURI = urlParts[9];
             _crossDomain = _cometd._isCrossDomain(hostAndPort);
 
             // Check if appending extra path is supported.
@@ -1562,8 +1614,8 @@
                     _cometd._info('Appending message type to URI ' + uri + afterURI + ' is not supported, disabling \'appendMessageTypeToURL\' configuration');
                     _config.appendMessageTypeToURL = false;
                 } else {
-                    const uriSegments = uri.split('/');
-                    let lastSegmentIndex = uriSegments.length - 1;
+                    var uriSegments = uri.split('/');
+                    var lastSegmentIndex = uriSegments.length - 1;
                     if (uri.match(/\/$/)) {
                         lastSegmentIndex -= 1;
                     }
@@ -1577,16 +1629,16 @@
             }
 
             if (window.Worker && window.Blob && window.URL && _config.useWorkerScheduler) {
-                let code = WorkerScheduler.toString();
+                var code = WorkerScheduler.toString();
                 // Remove the function declaration, the opening brace and the closing brace.
                 code = code.substring(code.indexOf('{') + 1, code.lastIndexOf('}'));
-                const blob = new window.Blob([code], {
+                var blob = new window.Blob([code], {
                     type: 'application/json'
                 });
-                const blobURL = window.URL.createObjectURL(blob);
-                const worker = new window.Worker(blobURL);
-                _scheduler.setTimeout = (funktion, delay) => {
-                    const id = _scheduler.register(funktion);
+                var blobURL = window.URL.createObjectURL(blob);
+                var worker = new window.Worker(blobURL);
+                _scheduler.setTimeout = function(funktion, delay) {
+                    var id = _scheduler.register(funktion);
                     worker.postMessage({
                         id: id,
                         type: 'setTimeout',
@@ -1594,16 +1646,16 @@
                     });
                     return id;
                 };
-                _scheduler.clearTimeout = id => {
+                _scheduler.clearTimeout = function(id) {
                     _scheduler.unregister(id);
                     worker.postMessage({
                         id: id,
                         type: 'clearTimeout'
                     });
                 };
-                worker.onmessage = e => {
-                    const id = e.data.id;
-                    const funktion = _scheduler.unregister(id);
+                worker.onmessage = function(e) {
+                    var id = e.data.id;
+                    var funktion = _scheduler.unregister(id);
                     if (funktion) {
                         funktion();
                     }
@@ -1613,7 +1665,7 @@
 
         function _removeListener(subscription) {
             if (subscription) {
-                const subscriptions = _listeners[subscription.channel];
+                var subscriptions = _listeners[subscription.channel];
                 if (subscriptions && subscriptions[subscription.id]) {
                     delete subscriptions[subscription.id];
                     _cometd._debug('Removed', subscription.listener ? 'listener' : 'subscription', subscription);
@@ -1628,11 +1680,11 @@
         }
 
         function _clearSubscriptions() {
-            for (let channel in _listeners) {
+            for (var channel in _listeners) {
                 if (_listeners.hasOwnProperty(channel)) {
-                    const subscriptions = _listeners[channel];
+                    var subscriptions = _listeners[channel];
                     if (subscriptions) {
-                        for (let id in subscriptions) {
+                        for (var id in subscriptions) {
                             if (subscriptions.hasOwnProperty(id)) {
                                 _removeSubscription(subscriptions[id]);
                             }
@@ -1654,7 +1706,7 @@
         }
 
         function _nextMessageId() {
-            const result = ++_messageId;
+            var result = ++_messageId;
             return '' + result;
         }
 
@@ -1662,7 +1714,7 @@
             try {
                 return callback.call(scope, message);
             } catch (x) {
-                const handler = _cometd.onExtensionException;
+                var handler = _cometd.onExtensionException;
                 if (_isFunction(handler)) {
                     _cometd._debug('Invoking extension exception handler', name, x);
                     try {
@@ -1678,15 +1730,15 @@
         }
 
         function _applyIncomingExtensions(message) {
-            for (let i = 0; i < _extensions.length; ++i) {
+            for (var i = 0; i < _extensions.length; ++i) {
                 if (message === undefined || message === null) {
                     break;
                 }
 
-                const extension = _extensions[i];
-                const callback = extension.extension.incoming;
+                var extension = _extensions[i];
+                var callback = extension.extension.incoming;
                 if (_isFunction(callback)) {
-                    const result = _applyExtension(extension.extension, callback, extension.name, message, false);
+                    var result = _applyExtension(extension.extension, callback, extension.name, message, false);
                     message = result === undefined ? message : result;
                 }
             }
@@ -1694,15 +1746,15 @@
         }
 
         function _applyOutgoingExtensions(message) {
-            for (let i = _extensions.length - 1; i >= 0; --i) {
+            for (var i = _extensions.length - 1; i >= 0; --i) {
                 if (message === undefined || message === null) {
                     break;
                 }
 
-                const extension = _extensions[i];
-                const callback = extension.extension.outgoing;
+                var extension = _extensions[i];
+                var callback = extension.extension.outgoing;
                 if (_isFunction(callback)) {
-                    const result = _applyExtension(extension.extension, callback, extension.name, message, true);
+                    var result = _applyExtension(extension.extension, callback, extension.name, message, true);
                     message = result === undefined ? message : result;
                 }
             }
@@ -1710,17 +1762,17 @@
         }
 
         function _notify(channel, message) {
-            const subscriptions = _listeners[channel];
+            var subscriptions = _listeners[channel];
             if (subscriptions) {
-                for (let id in subscriptions) {
+                for (var id in subscriptions) {
                     if (subscriptions.hasOwnProperty(id)) {
-                        const subscription = subscriptions[id];
+                        var subscription = subscriptions[id];
                         // Subscriptions may come and go, so the array may have 'holes'
                         if (subscription) {
                             try {
                                 subscription.callback.call(subscription.scope, message);
                             } catch (x) {
-                                const handler = _cometd.onListenerException;
+                                var handler = _cometd.onListenerException;
                                 if (_isFunction(handler)) {
                                     _cometd._debug('Invoking listener exception handler', subscription, x);
                                     try {
@@ -1743,10 +1795,10 @@
             _notify(channel, message);
 
             // Notify the globbing listeners
-            const channelParts = channel.split('/');
-            const last = channelParts.length - 1;
-            for (let i = last; i > 0; --i) {
-                let channelPart = channelParts.slice(0, i).join('/') + '/*';
+            var channelParts = channel.split('/');
+            var last = channelParts.length - 1;
+            for (var i = last; i > 0; --i) {
+                var channelPart = channelParts.slice(0, i).join('/') + '/*';
                 // We don't want to notify /foo/* if the channel is /foo/bar/baz,
                 // so we stop at the first non recursive globbing
                 if (i === last) {
@@ -1767,14 +1819,14 @@
 
         function _delayedSend(operation, delay) {
             _cancelDelayedSend();
-            const time = _advice.interval + delay;
+            var time = _advice.interval + delay;
             _cometd._debug('Function scheduled in', time, 'ms, interval =', _advice.interval, 'backoff =', _backoff, operation);
             _scheduledSend = _cometd.setTimeout(operation, time);
         }
 
         // Needed to break cyclic dependencies between function definitions
-        let _handleMessages;
-        let _handleFailure;
+        var _handleMessages;
+        var _handleFailure;
 
         /**
          * Delivers the messages to the CometD server
@@ -1787,9 +1839,9 @@
             // This is not guaranteed since the handshake may take time to return
             // (and hence the clientId is not known yet) and the application
             // may create other messages.
-            for (let i = 0; i < messages.length; ++i) {
-                let message = messages[i];
-                const messageId = message.id;
+            for (var i = 0; i < messages.length; ++i) {
+                var message = messages[i];
+                var messageId = message.id;
 
                 if (_clientId) {
                     message.clientId = _clientId;
@@ -1814,7 +1866,7 @@
                 _metaConnect = messages[0];
             }
 
-            let url = _cometd.getURL();
+            var url = _cometd.getURL();
             if (_config.appendMessageTypeToURL) {
                 // If url does not end with '/', then append it
                 if (!url.match(/\/$/)) {
@@ -1825,20 +1877,20 @@
                 }
             }
 
-            const envelope = {
+            var envelope = {
                 url: url,
                 sync: false,
                 messages: messages,
-                onSuccess: rcvdMessages => {
+                onSuccess: function(rcvdMessages) {
                     try {
                         _handleMessages.call(_cometd, rcvdMessages);
                     } catch (x) {
                         _cometd._info('Exception during handling of messages', x);
                     }
                 },
-                onFailure: (conduit, messages, failure) => {
+                onFailure: function(conduit, messages, failure) {
                     try {
-                        const transport = _cometd.getTransport();
+                        var transport = _cometd.getTransport();
                         failure.connectionType = transport ? transport.getType() : "unknown";
                         _handleFailure.call(_cometd, conduit, messages, failure);
                     } catch (x) {
@@ -1888,7 +1940,7 @@
         }
 
         function _flushBatch() {
-            const messages = _messageQueue;
+            var messages = _messageQueue;
             _messageQueue = [];
             if (messages.length > 0) {
                 _send(messages, false);
@@ -1899,7 +1951,7 @@
          * Ends the batch of messages to be sent in a single request,
          * optionally sending messages present in the message queue depending
          * on the given argument.
-         * @see _startBatch()
+         * @see #_startBatch()
          */
         function _endBatch() {
             --_batch;
@@ -1918,7 +1970,7 @@
          */
         function _connect() {
             if (!_isDisconnected()) {
-                const bayeuxMessage = {
+                var bayeuxMessage = {
                     id: _nextMessageId(),
                     channel: '/meta/connect',
                     connectionType: _transport.getType()
@@ -1943,7 +1995,7 @@
 
         function _delayedConnect(delay) {
             _setStatus('connecting');
-            _delayedSend(() => {
+            _delayedSend(function() {
                 _connect();
             }, delay);
         }
@@ -1973,7 +2025,7 @@
 
             // Fail any existing queued message
             if (_messageQueue.length > 0) {
-                const messages = _messageQueue;
+                var messages = _messageQueue;
                 _messageQueue = [];
                 _handleFailure.call(_cometd, undefined, messages, {
                     reason: 'Disconnected'
@@ -1982,7 +2034,7 @@
         }
 
         function _notifyTransportException(oldTransport, newTransport, failure) {
-            const handler = _cometd.onTransportException;
+            var handler = _cometd.onTransportException;
             if (_isFunction(handler)) {
                 _cometd._debug('Invoking transport exception handler', oldTransport, newTransport, failure);
                 try {
@@ -2030,13 +2082,13 @@
             _handshakeProps = handshakeProps;
             _handshakeCallback = handshakeCallback;
 
-            const version = '1.0';
+            var version = '1.0';
 
             // Figure out the transports to send to the server
-            const url = _cometd.getURL();
-            const transportTypes = _transports.findTransportTypes(version, _crossDomain, url);
+            var url = _cometd.getURL();
+            var transportTypes = _transports.findTransportTypes(version, _crossDomain, url);
 
-            const bayeuxMessage = {
+            var bayeuxMessage = {
                 id: _nextMessageId(),
                 version: version,
                 minimumVersion: version,
@@ -2048,7 +2100,7 @@
                 }
             };
             // Do not allow the user to override important fields.
-            const message = _cometd._mixin(false, {}, _handshakeProps, bayeuxMessage);
+            var message = _cometd._mixin(false, {}, _handshakeProps, bayeuxMessage);
 
             // Save the callback.
             _cometd._putCallback(message.id, handshakeCallback);
@@ -2058,7 +2110,7 @@
             if (!_transport) {
                 _transport = _transports.negotiateTransport(transportTypes, version, _crossDomain, url);
                 if (!_transport) {
-                    const failure = 'Could not find initial transport among: ' + _transports.getTransportTypes();
+                    var failure = 'Could not find initial transport among: ' + _transports.getTransportTypes();
                     _cometd._warn(failure);
                     throw failure;
                 }
@@ -2081,7 +2133,7 @@
             // call publish() (or other methods that call _queueSend()).
             _internalBatch = true;
 
-            _delayedSend(() => {
+            _delayedSend(function() {
                 _handshake(_handshakeProps, _handshakeCallback);
             }, delay);
         }
@@ -2090,7 +2142,7 @@
             try {
                 callback.call(_cometd, message);
             } catch (x) {
-                const handler = _cometd.onCallbackException;
+                var handler = _cometd.onCallbackException;
                 if (_isFunction(handler)) {
                     _cometd._debug('Invoking callback exception handler', x);
                     try {
@@ -2104,10 +2156,12 @@
             }
         }
 
-        this._getCallback = messageId => _callbacks[messageId];
+        this._getCallback = function(messageId) {
+            return _callbacks[messageId];
+        };
 
         this._putCallback = function(messageId, callback) {
-            const result = this._getCallback(messageId);
+            var result = this._getCallback(messageId);
             if (_isFunction(callback)) {
                 _callbacks[messageId] = callback;
             }
@@ -2115,7 +2169,7 @@
         };
 
         function _handleCallback(message) {
-            const callback = _cometd._getCallback([message.id]);
+            var callback = _cometd._getCallback([message.id]);
             if (_isFunction(callback)) {
                 delete _callbacks[message.id];
                 _notifyCallback(callback, message);
@@ -2123,18 +2177,18 @@
         }
 
         function _handleRemoteCall(message) {
-            const context = _remoteCalls[message.id];
+            var context = _remoteCalls[message.id];
             delete _remoteCalls[message.id];
             if (context) {
                 _cometd._debug('Handling remote call response for', message, 'with context', context);
 
                 // Clear the timeout, if present.
-                const timeout = context.timeout;
+                var timeout = context.timeout;
                 if (timeout) {
                     _cometd.clearTimeout(timeout);
                 }
 
-                const callback = context.callback;
+                var callback = context.callback;
                 if (_isFunction(callback)) {
                     _notifyCallback(callback, message);
                     return true;
@@ -2146,16 +2200,16 @@
         this.onTransportFailure = function(message, failureInfo, failureHandler) {
             this._debug('Transport failure', failureInfo, 'for', message);
 
-            const transports = this.getTransportRegistry();
-            const url = this.getURL();
-            const crossDomain = this._isCrossDomain(_splitURL(url)[2]);
-            const version = '1.0';
-            const transportTypes = transports.findTransportTypes(version, crossDomain, url);
+            var transports = this.getTransportRegistry();
+            var url = this.getURL();
+            var crossDomain = this._isCrossDomain(_splitURL(url)[2]);
+            var version = '1.0';
+            var transportTypes = transports.findTransportTypes(version, crossDomain, url);
 
             if (failureInfo.action === 'none') {
                 if (message.channel === '/meta/handshake') {
                     if (!failureInfo.transport) {
-                        const failure = 'Could not negotiate transport, client=[' + transportTypes + '], server=[' + message.supportedConnectionTypes + ']';
+                        var failure = 'Could not negotiate transport, client=[' + transportTypes + '], server=[' + message.supportedConnectionTypes + ']';
                         this._warn(failure);
                         _notifyTransportException(_transport.getType(), null, {
                             reason: failure,
@@ -2170,14 +2224,14 @@
                 if (message.channel === '/meta/handshake') {
                     if (!failureInfo.transport) {
                         // The transport is invalid, try to negotiate again.
-                        const oldTransportType = _transport ? _transport.getType() : null;
-                        const newTransport = transports.negotiateTransport(transportTypes, version, crossDomain, url);
+                        var oldTransportType = _transport ? _transport.getType() : null;
+                        var newTransport = transports.negotiateTransport(transportTypes, version, crossDomain, url);
                         if (!newTransport) {
                             this._warn('Could not negotiate transport, client=[' + transportTypes + ']');
                             _notifyTransportException(oldTransportType, null, message.failure);
                             failureInfo.action = 'none';
                         } else {
-                            const newTransportType = newTransport.getType();
+                            var newTransportType = newTransport.getType();
                             this._debug('Transport', oldTransportType, '->', newTransportType);
                             _notifyTransportException(oldTransportType, newTransportType, message.failure);
                             failureInfo.action = 'handshake';
@@ -2189,7 +2243,7 @@
                         this.increaseBackoffPeriod();
                     }
                 } else {
-                    const now = new Date().getTime();
+                    var now = new Date().getTime();
 
                     if (_unconnectTime === 0) {
                         _unconnectTime = now;
@@ -2198,10 +2252,10 @@
                     if (failureInfo.action === 'retry') {
                         failureInfo.delay = this.increaseBackoffPeriod();
                         // Check whether we may switch to handshaking.
-                        const maxInterval = _advice.maxInterval;
+                        var maxInterval = _advice.maxInterval;
                         if (maxInterval > 0) {
-                            const expiration = _advice.timeout + _advice.interval + maxInterval;
-                            const unconnected = now - _unconnectTime;
+                            var expiration = _advice.timeout + _advice.interval + maxInterval;
+                            var unconnected = now - _unconnectTime;
                             if (unconnected + _backoff > expiration) {
                                 failureInfo.action = 'handshake';
                             }
@@ -2230,8 +2284,8 @@
                 _transport.setURL(failureInfo.url);
             }
 
-            const action = failureInfo.action;
-            const delay = failureInfo.delay || 0;
+            var action = failureInfo.action;
+            var delay = failureInfo.delay || 0;
             switch (action) {
                 case 'handshake':
                     _delayedHandshake(delay);
@@ -2261,10 +2315,10 @@
         }
 
         function _handshakeResponse(message) {
-            const url = _cometd.getURL();
+            var url = _cometd.getURL();
             if (message.successful) {
-                const crossDomain = _cometd._isCrossDomain(_splitURL(url)[2]);
-                const newTransport = _transports.negotiateTransport(message.supportedConnectionTypes, message.version, crossDomain, url);
+                var crossDomain = _cometd._isCrossDomain(_splitURL(url)[2]);
+                var newTransport = _transports.negotiateTransport(message.supportedConnectionTypes, message.version, crossDomain, url);
                 if (newTransport === null) {
                     message.successful = false;
                     _failHandshake(message, {
@@ -2296,7 +2350,7 @@
 
                 _handshakeMessages = message['x-messages'] || 0;
 
-                const action = _isDisconnected() ? 'none' : _advice.reconnect || 'retry';
+                var action = _isDisconnected() ? 'none' : _advice.reconnect || 'retry';
                 switch (action) {
                     case 'retry':
                         _resetBackoff();
@@ -2363,7 +2417,7 @@
                     // and the server will hold the request, so when a response returns
                     // we immediately call the server again (long polling).
                     // Listeners can call disconnect(), so check the state after they run.
-                    const action = _isDisconnected() ? 'none' : _advice.reconnect || 'retry';
+                    var action = _isDisconnected() ? 'none' : _advice.reconnect || 'retry';
                     switch (action) {
                         case 'retry':
                             _resetBackoff();
@@ -2423,11 +2477,11 @@
         }
 
         function _failSubscribe(message) {
-            const subscriptions = _listeners[message.subscription];
+            var subscriptions = _listeners[message.subscription];
             if (subscriptions) {
-                for (let id in subscriptions) {
+                for (var id in subscriptions) {
                     if (subscriptions.hasOwnProperty(id)) {
-                        const subscription = subscriptions[id];
+                        var subscription = subscriptions[id];
                         if (subscription && !subscription.listener) {
                             delete subscriptions[id];
                             _cometd._debug('Removed failed subscription', subscription);
@@ -2520,7 +2574,7 @@
 
             _updateAdvice(message.advice);
 
-            const channel = message.channel;
+            var channel = message.channel;
             switch (channel) {
                 case '/meta/handshake':
                     _handshakeResponse(message);
@@ -2550,22 +2604,22 @@
          */
         this.receive = _receive;
 
-        _handleMessages = rcvdMessages => {
+        _handleMessages = function(rcvdMessages) {
             _cometd._debug('Received', rcvdMessages);
 
-            for (let i = 0; i < rcvdMessages.length; ++i) {
-                const message = rcvdMessages[i];
+            for (var i = 0; i < rcvdMessages.length; ++i) {
+                var message = rcvdMessages[i];
                 _receive(message);
             }
         };
 
-        _handleFailure = (conduit, messages, failure) => {
+        _handleFailure = function(conduit, messages, failure) {
             _cometd._debug('handleFailure', conduit, messages, failure);
 
             failure.transport = conduit;
-            for (let i = 0; i < messages.length; ++i) {
-                const message = messages[i];
-                const failureMessage = {
+            for (var i = 0; i < messages.length; ++i) {
+                var message = messages[i];
+                var failureMessage = {
                     id: message.id,
                     successful: false,
                     channel: message.channel,
@@ -2598,9 +2652,9 @@
         };
 
         function _hasSubscriptions(channel) {
-            const subscriptions = _listeners[channel];
+            var subscriptions = _listeners[channel];
             if (subscriptions) {
-                for (let id in subscriptions) {
+                for (var id in subscriptions) {
                     if (subscriptions.hasOwnProperty(id)) {
                         if (subscriptions[id]) {
                             return true;
@@ -2612,7 +2666,7 @@
         }
 
         function _resolveScopedCallback(scope, callback) {
-            const delegate = {
+            var delegate = {
                 scope: scope,
                 method: callback
             };
@@ -2639,11 +2693,11 @@
             // The data structure is a map<channel, subscription[]>, where each subscription
             // holds the callback to be called and its scope.
 
-            const delegate = _resolveScopedCallback(scope, callback);
+            var delegate = _resolveScopedCallback(scope, callback);
             _cometd._debug('Adding', isListener ? 'listener' : 'subscription', 'on', channel, 'with scope', delegate.scope, 'and callback', delegate.method);
 
-            const id = ++_listenerId;
-            const subscription = {
+            var id = ++_listenerId;
+            var subscription = {
                 id: id,
                 channel: channel,
                 scope: delegate.scope,
@@ -2651,7 +2705,7 @@
                 listener: isListener
             };
 
-            let subscriptions = _listeners[channel];
+            var subscriptions = _listeners[channel];
             if (!subscriptions) {
                 subscriptions = {};
                 _listeners[channel] = subscriptions;
@@ -2681,7 +2735,7 @@
          * @see #unregisterTransport(type)
          */
         this.registerTransport = function(type, transport, index) {
-            const result = _transports.add(type, transport, index);
+            var result = _transports.add(type, transport, index);
             if (result) {
                 this._debug('Registered transport', type);
 
@@ -2699,7 +2753,7 @@
          * or null if no transport was previously registered under the given transport type
          */
         this.unregisterTransport = function(type) {
-            const transport = _transports.remove(type);
+            var transport = _transports.remove(type);
             if (transport !== null) {
                 this._debug('Unregistered transport', type);
 
@@ -2710,21 +2764,27 @@
             return transport;
         };
 
-        this.unregisterTransports = () => {
+        this.unregisterTransports = function() {
             _transports.clear();
         };
 
         /**
          * @return an array of all registered transport types
          */
-        this.getTransportTypes = () => _transports.getTransportTypes();
+        this.getTransportTypes = function() {
+            return _transports.getTransportTypes();
+        };
 
-        this.findTransport = name => _transports.find(name);
+        this.findTransport = function(name) {
+            return _transports.find(name);
+        };
 
         /**
          * @returns the TransportRegistry object
          */
-        this.getTransportRegistry = () => _transports;
+        this.getTransportRegistry = function() {
+            return _transports;
+        };
 
         /**
          * Configures the initial Bayeux communication with the Bayeux server.
@@ -2755,7 +2815,7 @@
          * @param handshakeProps an object to be merged with the handshake message
          * @param handshakeCallback a function to be invoked when the handshake is acknowledged
          */
-        this.handshake = (handshakeProps, handshakeCallback) => {
+        this.handshake = function(handshakeProps, handshakeCallback) {
             if (_status !== 'disconnected') {
                 throw 'Illegal state: handshaken';
             }
@@ -2777,12 +2837,12 @@
                 disconnectProps = undefined;
             }
 
-            const bayeuxMessage = {
+            var bayeuxMessage = {
                 id: _nextMessageId(),
                 channel: '/meta/disconnect'
             };
             // Do not allow the user to override important fields.
-            const message = this._mixin(false, {}, disconnectProps, bayeuxMessage);
+            var message = this._mixin(false, {}, disconnectProps, bayeuxMessage);
 
             // Save the callback.
             _cometd._putCallback(message.id, disconnectCallback);
@@ -2800,7 +2860,7 @@
          * calls must be made to close and send the batch of messages.
          * @see #endBatch()
          */
-        this.startBatch = () => {
+        this.startBatch = function() {
             _startBatch();
         };
 
@@ -2809,7 +2869,7 @@
          * in a single request.
          * @see #startBatch()
          */
-        this.endBatch = () => {
+        this.endBatch = function() {
             _endBatch();
         };
 
@@ -2820,7 +2880,7 @@
          * @param callback the callback to be executed within {@link #startBatch()} and {@link #endBatch()} calls
          */
         this.batch = function(scope, callback) {
-            const delegate = _resolveScopedCallback(scope, callback);
+            var delegate = _resolveScopedCallback(scope, callback);
             this.startBatch();
             try {
                 delegate.method.call(delegate.scope);
@@ -2849,11 +2909,11 @@
          * @param {Function} callback the function associate to the given transport event
          * @see #removeTransportListener
          */
-        this.addTransportListener = (event, callback) => {
+        this.addTransportListener = function(event, callback) {
             if (event !== 'timeout') {
                 throw 'Unsupported event ' + event;
             }
-            let callbacks = _transportListeners[event];
+            var callbacks = _transportListeners[event];
             if (!callbacks) {
                 _transportListeners[event] = callbacks = [];
             }
@@ -2867,10 +2927,10 @@
          * @return {boolean} whether the disassociation was successful
          * @see #addTransportListener
          */
-        this.removeTransportListener = (event, callback) => {
-            const callbacks = _transportListeners[event];
+        this.removeTransportListener = function(event, callback) {
+            var callbacks = _transportListeners[event];
             if (callbacks) {
-                const index = callbacks.indexOf(callback);
+                var index = callbacks.indexOf(callback);
                 if (index >= 0) {
                     callbacks.splice(index, 1);
                     return true;
@@ -2879,7 +2939,9 @@
             return false;
         }
 
-        this._getTransportListeners = event => _transportListeners[event]
+        this._getTransportListeners = function(event) {
+            return _transportListeners[event];
+        }
 
         /**
          * Adds a listener for bayeux messages, performing the given callback in the given scope
@@ -2906,7 +2968,7 @@
          * @param subscription the subscription to unsubscribe.
          * @see #addListener(channel, scope, callback)
          */
-        this.removeListener = subscription => {
+        this.removeListener = function(subscription) {
             // Beware of subscription.id == 0, which is falsy => cannot use !subscription.id
             if (!subscription || !subscription.channel || !("id" in subscription)) {
                 throw 'Invalid argument: expected subscription, not ' + subscription;
@@ -2919,7 +2981,7 @@
          * Removes all listeners registered with {@link #addListener(channel, scope, callback)} or
          * {@link #subscribe(channel, scope, callback)}.
          */
-        this.clearListeners = () => {
+        this.clearListeners = function() {
             _listeners = {};
         };
 
@@ -2957,21 +3019,21 @@
             }
 
             // Only send the message to the server if this client has not yet subscribed to the channel
-            const send = !_hasSubscriptions(channel);
+            var send = !_hasSubscriptions(channel);
 
-            const subscription = _addListener(channel, scope, callback, false);
+            var subscription = _addListener(channel, scope, callback, false);
 
             if (send) {
                 // Send the subscription message after the subscription registration to avoid
                 // races where the server would send a message to the subscribers, but here
                 // on the client the subscription has not been added yet to the data structures
-                const bayeuxMessage = {
+                var bayeuxMessage = {
                     id: _nextMessageId(),
                     channel: '/meta/subscribe',
                     subscription: channel
                 };
                 // Do not allow the user to override important fields.
-                const message = this._mixin(false, {}, subscribeProps, bayeuxMessage);
+                var message = this._mixin(false, {}, subscribeProps, bayeuxMessage);
 
                 // Save the callback.
                 _cometd._putCallback(message.id, subscribeCallback);
@@ -2980,7 +3042,7 @@
             } else {
                 if (_isFunction(subscribeCallback)) {
                     // Keep the semantic of calling callbacks asynchronously.
-                    _cometd.setTimeout(() => {
+                    _cometd.setTimeout(function() {
                         _notifyCallback(subscribeCallback, {
                             id: _nextMessageId(),
                             successful: true,
@@ -3017,16 +3079,16 @@
             // This ensures that if the server fails, this client does not get notifications
             this.removeListener(subscription);
 
-            const channel = subscription.channel;
+            var channel = subscription.channel;
             // Only send the message to the server if this client unsubscribes the last subscription
             if (!_hasSubscriptions(channel)) {
-                const bayeuxMessage = {
+                var bayeuxMessage = {
                     id: _nextMessageId(),
                     channel: '/meta/unsubscribe',
                     subscription: channel
                 };
                 // Do not allow the user to override important fields.
-                const message = this._mixin(false, {}, unsubscribeProps, bayeuxMessage);
+                var message = this._mixin(false, {}, unsubscribeProps, bayeuxMessage);
 
                 // Save the callback.
                 _cometd._putCallback(message.id, unsubscribeCallback);
@@ -3035,7 +3097,7 @@
             } else {
                 if (_isFunction(unsubscribeCallback)) {
                     // Keep the semantic of calling callbacks asynchronously.
-                    _cometd.setTimeout(() => {
+                    _cometd.setTimeout(function() {
                         _notifyCallback(unsubscribeCallback, {
                             id: _nextMessageId(),
                             successful: true,
@@ -3059,7 +3121,7 @@
          * Removes all subscriptions added via {@link #subscribe(channel, scope, callback, subscribeProps)},
          * but does not remove the listeners added via {@link addListener(channel, scope, callback)}.
          */
-        this.clearSubscriptions = () => {
+        this.clearSubscriptions = function() {
             _clearSubscriptions();
         };
 
@@ -3093,13 +3155,13 @@
                 publishProps = undefined;
             }
 
-            const bayeuxMessage = {
+            var bayeuxMessage = {
                 id: _nextMessageId(),
                 channel: channel,
                 data: content
             };
             // Do not allow the user to override important fields.
-            const message = this._mixin(false, {}, publishProps, bayeuxMessage);
+            var message = this._mixin(false, {}, publishProps, bayeuxMessage);
 
             // Save the callback.
             _cometd._putCallback(message.id, publishCallback);
@@ -3140,12 +3202,12 @@
                 publishCallback = publishProps;
                 publishProps = undefined;
             }
-            const content = {
+            var content = {
                 meta: meta,
                 data: data,
                 last: last
             };
-            const ext = this._mixin(false, publishProps, {
+            var ext = this._mixin(false, publishProps, {
                 ext: {
                     binary: {}
                 }
@@ -3196,23 +3258,23 @@
             if (!target.match(/^\//)) {
                 target = '/' + target;
             }
-            const channel = '/service' + target;
+            var channel = '/service' + target;
             if (!_isValidChannel(channel)) {
                 throw 'Illegal argument: invalid target ' + target;
             }
 
-            const bayeuxMessage = {
+            var bayeuxMessage = {
                 id: _nextMessageId(),
                 channel: channel,
                 data: content
             };
-            const message = this._mixin(false, {}, callProps, bayeuxMessage);
+            var message = this._mixin(false, {}, callProps, bayeuxMessage);
 
-            const context = {
+            var context = {
                 callback: callback
             };
             if (timeout > 0) {
-                context.timeout = _cometd.setTimeout(() => {
+                context.timeout = _cometd.setTimeout(function() {
                     _cometd._debug('Timing out remote call', message, 'after', timeout, 'ms');
                     _failMessage({
                         id: message.id,
@@ -3269,12 +3331,12 @@
                 callProps = undefined;
             }
 
-            const content = {
+            var content = {
                 meta: meta,
                 data: data,
                 last: last
             };
-            const ext = this._mixin(false, callProps, {
+            var ext = this._mixin(false, callProps, {
                 ext: {
                     binary: {}
                 }
@@ -3286,7 +3348,9 @@
         /**
          * Returns a string representing the status of the bayeux communication with the Bayeux server.
          */
-        this.getStatus = () => _status;
+        this.getStatus = function() {
+            return _status;
+        };
 
         /**
          * Returns whether this instance has been disconnected.
@@ -3301,7 +3365,7 @@
          * @param period the backoff period to set
          * @see #getBackoffIncrement()
          */
-        this.setBackoffIncrement = period => {
+        this.setBackoffIncrement = function(period) {
             _config.backoffIncrement = period;
         };
 
@@ -3309,24 +3373,30 @@
          * Returns the backoff period used to increase the backoff time when retrying an unsuccessful or failed message.
          * @see #setBackoffIncrement(period)
          */
-        this.getBackoffIncrement = () => _config.backoffIncrement;
+        this.getBackoffIncrement = function() {
+            return _config.backoffIncrement;
+        };
 
         /**
          * Returns the backoff period to wait before retrying an unsuccessful or failed message.
          */
-        this.getBackoffPeriod = () => _backoff;
+        this.getBackoffPeriod = function() {
+            return _backoff;
+        };
 
         /**
          * Increases the backoff period up to the maximum value configured.
          * @returns the backoff period after increment
          * @see getBackoffIncrement
          */
-        this.increaseBackoffPeriod = () => _increaseBackoff();
+        this.increaseBackoffPeriod = function() {
+            return _increaseBackoff();
+        };
 
         /**
          * Resets the backoff period to zero.
          */
-        this.resetBackoffPeriod = () => {
+        this.resetBackoffPeriod = function() {
             _resetBackoff();
         };
 
@@ -3336,7 +3406,7 @@
          * less verbose to more verbose.
          * @param level the log level string
          */
-        this.setLogLevel = level => {
+        this.setLogLevel = function(level) {
             _config.logLevel = level;
         };
 
@@ -3348,8 +3418,8 @@
          * The format of the extension object is the following:
          * <pre>
          * {
-         *     incoming: message => { ... },
-         *     outgoing: message => { ... }
+         *     incoming: function(message) { ... },
+         *     outgoing: function(message) { ... }
          * }
          * </pre>
          * Both properties are optional, but if they are present they will be called
@@ -3367,9 +3437,9 @@
                 throw 'Illegal argument type: extension name must be a string';
             }
 
-            let existing = false;
-            for (let i = 0; i < _extensions.length; ++i) {
-                const existingExtension = _extensions[i];
+            var existing = false;
+            for (var i = 0; i < _extensions.length; ++i) {
+                var existingExtension = _extensions[i];
                 if (existingExtension.name === name) {
                     existing = true;
                     break;
@@ -3405,16 +3475,16 @@
                 throw 'Illegal argument type: extension name must be a string';
             }
 
-            let unregistered = false;
-            for (let i = 0; i < _extensions.length; ++i) {
-                const extension = _extensions[i];
+            var unregistered = false;
+            for (var i = 0; i < _extensions.length; ++i) {
+                var extension = _extensions[i];
                 if (extension.name === name) {
                     _extensions.splice(i, 1);
                     unregistered = true;
                     this._debug('Unregistered extension', name);
 
                     // Callback for extensions
-                    const ext = extension.extension;
+                    var ext = extension.extension;
                     if (_isFunction(ext.unregistered)) {
                         ext.unregistered();
                     }
@@ -3430,9 +3500,9 @@
          * @param name the name of the extension to find
          * @return the extension found or null if no extension with the given name has been registered
          */
-        this.getExtension = name => {
-            for (let i = 0; i < _extensions.length; ++i) {
-                const extension = _extensions[i];
+        this.getExtension = function(name) {
+            for (var i = 0; i < _extensions.length; ++i) {
+                var extension = _extensions[i];
                 if (extension.name === name) {
                     return extension.extension;
                 }
@@ -3444,19 +3514,23 @@
          * Returns the name assigned to this CometD object, or the string 'default'
          * if no name has been explicitly passed as parameter to the constructor.
          */
-        this.getName = () => _name;
+        this.getName = function() {
+            return _name;
+        };
 
         /**
          * Returns the clientId assigned by the Bayeux server during handshake.
          */
-        this.getClientId = () => _clientId;
+        this.getClientId = function() {
+            return _clientId;
+        };
 
         /**
          * Returns the URL of the Bayeux server.
          */
-        this.getURL = () => {
+        this.getURL = function() {
             if (_transport) {
-                let url = _transport.getURL();
+                var url = _transport.getURL();
                 if (url) {
                     return url;
                 }
@@ -3468,7 +3542,9 @@
             return _config.url;
         };
 
-        this.getTransport = () => _transport;
+        this.getTransport = function() {
+            return _transport;
+        };
 
         this.getConfiguration = function() {
             return this._mixin(true, {}, _config);
@@ -3478,16 +3554,18 @@
             return this._mixin(true, {}, _advice);
         };
 
-        this.setTimeout = (funktion, delay) => _scheduler.setTimeout(() => {
-            try {
-                _cometd._debug('Invoking timed function', funktion);
-                funktion();
-            } catch (x) {
-                _cometd._debug('Exception invoking timed function', funktion, x);
-            }
-        }, delay);
+        this.setTimeout = function(funktion, delay) {
+            return _scheduler.setTimeout(function() {
+                try {
+                    _cometd._debug('Invoking timed function', funktion);
+                    funktion();
+                } catch (x) {
+                    _cometd._debug('Exception invoking timed function', funktion, x);
+                }
+            }, delay);
+        };
 
-        this.clearTimeout = id => {
+        this.clearTimeout = function(id) {
             _scheduler.clearTimeout(id);
         };
 
@@ -3497,9 +3575,9 @@
         }
         this.registerTransport('long-polling', new LongPollingTransport());
         this.registerTransport('callback-polling', new CallbackPollingTransport());
-    }
+    };
 
-    const _z85EncodeTable = [
+    var _z85EncodeTable = [
         '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
         'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
         'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
@@ -3510,7 +3588,7 @@
         '*', '?', '&', '<', '>', '(', ')', '[', ']', '{',
         '}', '@', '%', '$', '#'
     ];
-    const _z85DecodeTable = [
+    var _z85DecodeTable = [
         0x00, 0x44, 0x00, 0x54, 0x53, 0x52, 0x48, 0x00,
         0x4B, 0x4C, 0x46, 0x41, 0x00, 0x3F, 0x3E, 0x45,
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -3529,14 +3607,14 @@
      * Z85 encodes binary data to a string that may be sent as JSON payload,
      * and decodes strings to binary data.
      */
-    const Z85 = {
+    var Z85 = {
         /**
          * Encodes the given bytes to a string.
          * @param bytes the bytes to encode, either a number[], or an ArrayBuffer, or a TypedArray.
          * @return {string} the bytes encoded as a string
          */
-        encode: bytes => {
-            let buffer = null;
+        encode: function(bytes) {
+            var buffer = null;
             if (bytes instanceof ArrayBuffer) {
                 buffer = bytes;
             } else if (bytes.buffer instanceof ArrayBuffer) {
@@ -3548,20 +3626,20 @@
                 throw 'Cannot Z85 encode ' + bytes;
             }
 
-            const length = buffer.byteLength;
-            const remainder = length % 4;
-            const padding = 4 - (remainder === 0 ? 4 : remainder);
-            const view = new DataView(buffer);
-            let result = '';
-            let value = 0;
-            for (let i = 0; i < length + padding; ++i) {
-                const isPadding = i >= length;
+            var length = buffer.byteLength;
+            var remainder = length % 4;
+            var padding = 4 - (remainder === 0 ? 4 : remainder);
+            var view = new DataView(buffer);
+            var result = '';
+            var value = 0;
+            for (var i = 0; i < length + padding; ++i) {
+                var isPadding = i >= length;
                 value = value * 256 + (isPadding ? 0 : view.getUint8(i));
                 if ((i + 1) % 4 === 0) {
-                    let divisor = 85 * 85 * 85 * 85;
-                    for (let j = 5; j > 0; --j) {
+                    var divisor = 85 * 85 * 85 * 85;
+                    for (var j = 5; j > 0; --j) {
                         if (!isPadding || j > padding) {
-                            const code = Math.floor(value / divisor) % 85;
+                            var code = Math.floor(value / divisor) % 85;
                             result += _z85EncodeTable[code];
                         }
                         divisor /= 85;
@@ -3577,24 +3655,24 @@
          * @param string the string to decode
          * @return {ArrayBuffer} the decoded bytes
          */
-        decode: string => {
-            const remainder = string.length % 5;
-            const padding = 5 - (remainder === 0 ? 5 : remainder);
-            for (let p = 0; p < padding; ++p) {
+        decode: function(string) {
+            var remainder = string.length % 5;
+            var padding = 5 - (remainder === 0 ? 5 : remainder);
+            for (var p = 0; p < padding; ++p) {
                 string += _z85EncodeTable[_z85EncodeTable.length - 1];
             }
-            const length = string.length;
+            var length = string.length;
 
-            const buffer = new ArrayBuffer((length * 4 / 5) - padding);
-            const view = new DataView(buffer);
-            let value = 0;
-            let charIdx = 0;
-            let byteIdx = 0;
-            for (let i = 0; i < length; ++i) {
-                const code = string.charCodeAt(charIdx++) - 32;
+            var buffer = new ArrayBuffer((length * 4 / 5) - padding);
+            var view = new DataView(buffer);
+            var value = 0;
+            var charIdx = 0;
+            var byteIdx = 0;
+            for (var i = 0; i < length; ++i) {
+                var code = string.charCodeAt(charIdx++) - 32;
                 value = value * 85 + _z85DecodeTable[code];
                 if (charIdx % 5 === 0) {
-                    let divisor = 256 * 256 * 256;
+                    var divisor = 256 * 256 * 256;
                     while (divisor >= 1) {
                         if (byteIdx < view.byteLength) {
                             view.setUint8(byteIdx++, Math.floor(value / divisor) % 256);
